@@ -34,7 +34,7 @@ source venv/bin/activate
 **Best for:** Team coordination, learning cooperative behaviors
 
 ```bash
-./venv/bin/python train_5v5_mappo_gpu.py --iterations 500 --episodes 20 --lr 3e-4
+./venv/bin/python train_5v5_mappo_gpu.py --iterations 100 --episodes 20 --lr 3e-4
 ```
 
 | Parameter | Default | Description | Recommendation |
@@ -53,7 +53,7 @@ source venv/bin/activate
 **Best for:** Finding optimal hyperparameters automatically
 
 ```bash
-./venv/bin/python train_5v5_pbt_gpu.py --population 20 --iterations 500 --episodes_per_iter 20 --eval_games 10 --workers 32
+./venv/bin/python train_5v5_pbt_gpu.py --population 20 --iterations 100 --episodes_per_iter 20 --eval_games 10 --workers 32
 ```
 
 | Parameter | Default | Description | Recommendation |
