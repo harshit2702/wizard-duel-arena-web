@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wizard Duel: One vs Many</title>
+    <link rel="stylesheet" href="style.css?v=11">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ========== LOBBY SCREEN ========== -->
+<div id="lobby-screen" class="screen active">
+    <div class="lobby-bg"></div>
+    <div class="lobby-content">
+        <h1 class="title">&#9889; Wizard Duel &#9889;</h1>
+        <p class="subtitle">One vs Many &mdash; Team Battle Arena</p>
+
+        <div class="setup-grid">
+            <!-- ALLY TEAM -->
+            <div class="setup-panel">
+                <h2 class="panel-title ally-title">Your Team (Allies)</h2>
+                <div class="form-group">
+                    <label>Your Avatar</label>
+                    <div class="avatar-picker" id="ally-avatar-picker">
+                        <div class="avatar-option selected" data-avatar="harry"><span>Harry</span></div>
+                        <div class="avatar-option" data-avatar="kingsley"><span>Kingsley</span></div>
+                        <div class="avatar-option" data-avatar="flitwick"><span>Flitwick</span></div>
+                        <div class="avatar-option" data-avatar="snape"><span>Snape</span></div>
+                        <div class="avatar-option" data-avatar="witch"><span>Witch</span></div>
+                        <div class="avatar-option" data-avatar="hagrid"><span>Hagrid</span></div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Archetype</label>
+                        <select id="p-archetype">
+                            <option value="auror">Auror (Balanced)</option>
+                            <option value="prodigy">Prodigy (Focus)</option>
+                            <option value="brawler">Brawler (HP Tank)</option>
+                            <option value="curse_specialist">Curse Specialist</option>
+                            <option value="death_eater">Death Eater</option>
+                            <option value="occlumens">Occlumens (Mind)</option>
+                            <option value="strategist">Strategist</option>
+                            <option value="dueling_master">Dueling Master</option>
+                            <option value="default">Default</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Team Size</label>
+                        <select id="team-a-size">
+                            <option value="1">1 (Solo)</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Ally AI Model (teammates)</label>
+                    <select id="ally-model">
+                        <option value="random">Random (Easy)</option>
+                        <option value="unified_evo" selected>Evo Brain (Hard)</option>
+                        <option value="unified_mappo">MAPPO (Hard)</option>
+                        <option value="unified_pbt">PBT (Hard)</option>
+                        <option value="legacy">Legacy AI (Medium)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- VS DIVIDER -->
+            <div class="vs-divider"><span>VS</span></div>
+
+            <!-- ENEMY TEAM -->
+            <div class="setup-panel enemy-panel">
+                <h2 class="panel-title enemy-title">Enemy Team</h2>
+                <div class="form-group">
+                    <label>Enemy Avatar</label>
+                    <div class="avatar-picker" id="enemy-avatar-picker">
+                        <div class="avatar-option selected" data-avatar="voldemort"><span>Voldemort</span></div>
+                        <div class="avatar-option" data-avatar="bellatrix"><span>Bellatrix</span></div>
+                        <div class="avatar-option" data-avatar="snape"><span>Snape</span></div>
+                        <div class="avatar-option" data-avatar="harry"><span>Harry</span></div>
+                        <div class="avatar-option" data-avatar="kingsley"><span>Kingsley</span></div>
+                        <div class="avatar-option" data-avatar="witch"><span>Witch</span></div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Enemy Count</label>
+                        <select id="enemy-count">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Enemy AI Model</label>
+                    <select id="enemy-model">
+                        <option value="random">Random (Easy)</option>
+                        <option value="legacy">Legacy AI (Medium)</option>
+                        <option value="unified_evo" selected>Evo Brain (Hard)</option>
+                        <option value="unified_mappo">MAPPO (Hard)</option>
+                        <option value="unified_pbt">PBT (Hard)</option>
+                        <option value="unified_dqn">DQN (Hard)</option>
+                        <option value="unified_imitation">Imitation (Hard)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button id="start-btn" class="primary-btn">
+            <span class="btn-icon">&#9876;&#65039;</span> Begin Duel
+        </button>
+    </div>
+</div>
+
+<!-- ========== BATTLE SCREEN ========== -->
+<div id="battle-screen" class="screen">
+    <!-- Particle Canvas -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Settings Gear -->
+    <button id="settings-btn" title="Settings">&#9881;&#65039;</button>
+    <!-- Replay Round Button -->
+    <button id="replay-btn" title="Replay last round" class="hidden">&#9654;&#65039; Replay</button>
+
+    <div id="battlefield">
+        <div id="team-a" class="team-zone ally-zone"></div>
+
+        <div id="mid-field">
+            <div id="turn-indicator">Turn 1 / 15</div>
+            <div id="round-log"></div>
+        </div>
+
+        <div id="team-b" class="team-zone enemy-zone"></div>
+    </div>
+
+    <!-- SPELL BAR -->
+    <div id="controls">
+        <div id="spell-bar"></div>
+        <div id="spell-tooltip" class="hidden"></div>
+    </div>
+</div>
+
+<!-- ========== SETTINGS PANEL OVERLAY ========== -->
+<div id="settings-overlay" class="screen overlay">
+    <div class="settings-panel">
+        <h2>&#9881;&#65039; Settings</h2>
+
+        <div class="setting-group">
+            <label class="setting-label">Animation Speed</label>
+            <div class="slider-row">
+                <span class="slider-label">Fast</span>
+                <input type="range" id="anim-speed-slider" min="0.3" max="3" step="0.1" value="1">
+                <span class="slider-label">Slow</span>
+            </div>
+            <div class="slider-value" id="anim-speed-value">1.0x</div>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">Click to Continue</label>
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" name="click-mode" value="always" checked>
+                    <span>Always</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="click-mode" value="next-turn">
+                    <span>Next turn only</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="click-mode" value="never">
+                    <span>Never (auto-advance)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">Show Distance Labels</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="show-dist-labels" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <button id="settings-close-btn" class="primary-btn">Done</button>
+    </div>
+</div>
+
+<!-- ========== WIN SCREEN OVERLAY ========== -->
+<div id="win-screen" class="screen overlay">
+    <div class="win-content">
+        <div id="win-icon" class="win-icon"></div>
+        <h1 id="win-title">Victory!</h1>
+        <p id="win-subtitle">Your team has won the duel</p>
+        <div id="win-stats" class="win-stats"></div>
+        <button id="back-to-lobby-btn" class="primary-btn">
+            Back to Lobby
+        </button>
+    </div>
+</div>
+
+<!-- WIZARD CARD TEMPLATE -->
+<template id="wizard-card-template">
+    <div class="wizard-card" data-id="">
+        <div class="card-body">
+            <div class="avatar-container">
+                <pre class="ascii-avatar"></pre>
+                <div class="status-effects"></div>
+            </div>
+            <div class="wizard-info">
+                <div class="wizard-name">Wizard</div>
+                <div class="dist-label"></div>
+                <div class="stat-bars">
+                    <div class="stat-row hp-row">
+                        <span class="stat-label">HP</span>
+                        <div class="bar-outer"><div class="bar-fill hp-fill"></div></div>
+                        <span class="stat-value hp-value">100</span>
+                    </div>
+                    <div class="stat-row pos-row">
+                        <span class="stat-label">POS</span>
+                        <div class="bar-outer"><div class="bar-fill pos-fill"></div></div>
+                        <span class="stat-value pos-value">50</span>
+                    </div>
+                    <div class="stat-row foc-row">
+                        <span class="stat-label">FOC</span>
+                        <div class="bar-outer"><div class="bar-fill foc-fill"></div></div>
+                        <span class="stat-value foc-value">100</span>
+                    </div>
+                </div>
+                <div class="status-badges"></div>
+            </div>
+        </div>
+        <div class="target-reticle hidden">TARGET</div>
+        <div class="floating-numbers"></div>
+    </div>
+</template>
+
+<script src="app.js?v=11"></script>
+</body>
+</html>

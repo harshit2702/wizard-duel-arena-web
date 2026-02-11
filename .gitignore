@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Env / tooling
+.venv/
+venv/
+.env
+.env.*
+.DS_Store
+
+# Training outputs / large artifacts (default ignore)
+*.pth
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Env / tooling
+.venv/
+venv/
+.env
+.env.*
+.DS_Store
+
+# Ignore archived folder (do not upload it)
+archived/
+
+# Training outputs / large artifacts (default ignore)
+*.pth
+checkpoints*/
+
+# Keep explicit runtime models needed by the web/visual tools and backend
+# Un-ignore root legacy brains
+!brain_*.pth
+
+# Un-ignore specific checkpoint directories (so git can recurse into them)
+!checkpoints_5v5/
+!checkpoints_evo_gpu/
+!checkpoints_mappo_gpu/
+!checkpoints_pbt_gpu/
+!checkpoints_dqn_gpu/
+!checkpoints_imitation_gpu/
+
+# Un-ignore specific checkpoint files that the UI expects
+!checkpoints_5v5/unified_best_*.pth
+!checkpoints_5v5/legacy_best_*.pth
+!checkpoints_evo_gpu/*.pth
+!checkpoints_mappo_gpu/*.pth
+!checkpoints_pbt_gpu/*.pth
+!checkpoints_dqn_gpu/*.pth
+!checkpoints_imitation_gpu/*.pth
+
+# Optional local assets (audio)
+assets/

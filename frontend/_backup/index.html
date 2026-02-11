@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wizard Duel: One vs Many</title>
+    <link rel="stylesheet" href="style.css?v=4">
+    <!-- Lucide Icons (Local) -->
+    <script src="lucide.js"></script>
+</head>
+
+<body>
+    <div id="debug-container"></div>
+    <div id="app">
+        <!-- Lobby Screen -->
+        <div id="lobby-screen" class="screen">
+            <h1>Wizard Duel Setup</h1>
+
+            <div class="setup-container">
+                <div class="team-setup">
+                    <h2>Your Hero</h2>
+                    <div class="form-group">
+                        <label>Avatar</label>
+                        <select id="p-avatar">
+                            <option value="harry">Harry</option>
+                            <option value="voldemort">Voldemort</option>
+                            <option value="snape">Snape</option>
+                            <option value="bellatrix">Bellatrix</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Archetype</label>
+                        <select id="p-archetype">
+                            <option value="auror">Auror (Balanced)</option>
+                            <option value="prodigy">Prodigy (High Posture)</option>
+                            <option value="brawler">Brawler (High HP)</option>
+                            <option value="glass_cannon">Glass Cannon</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="team-setup">
+                    <h2>Game Settings</h2>
+                    <div class="form-group">
+                        <label>Team A Size</label>
+                        <input type="number" id="team-a-size" value="1" min="1" max="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Player Position</label>
+                        <select id="p-position">
+                            <option value="1">Slot 1 (Front)</option>
+                            <option value="2">Slot 2</option>
+                            <option value="3">Slot 3 (Mid)</option>
+                            <option value="4">Slot 4</option>
+                            <option value="5">Slot 5 (Back)</option>
+                        </select>
+                    </div>
+
+                    <div class="team-setup">
+                        <h2>Enemies (Team B)</h2>
+                        <div class="form-group">
+                            <label>Count (1-5)</label>
+                            <input type="number" id="enemy-count" value="3" min="1" max="5">
+                        </div>
+                        <div class="form-group">
+                            <label>Difficulty</label>
+                            <select id="enemy-ai">
+                                <option value="random">Random (Easy)</option>
+                                <option value="legacy">Legacy AI (Medium)</option>
+                                <option value="unified">Unified Brain (Hard)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="start-btn" class="primary-btn">Start Duel</button>
+            </div>
+
+            <!-- End of Lobby Content -->
+        </div>
+
+        <!-- Battlefield Screen (Now a sibling) -->
+        <div id="battle-screen" class="screen hidden">
+            <div id="battlefield">
+                <!-- SVG Layer for Beams -->
+                <svg id="effects-layer"></svg>
+
+                <div id="team-b" class="team-zone">
+                    <!-- Enemies go here -->
+                </div>
+
+                <div id="mid-field">
+                    <div id="turn-indicator">Turn 1</div>
+                    <div id="log-box"></div>
+                </div>
+
+                <div id="team-a" class="team-zone">
+                    <!-- Player goes here -->
+                </div>
+            </div>
+
+            <div id="controls">
+                <div id="spell-bar">
+                    <!-- Spells injected here -->
+                </div>
+                <!-- <button id="end-turn-btn" class="secondary-btn">Skip Turn</button> -->
+            </div>
+        </div>
+
+        <!-- Templates -->
+        <template id="card-template">
+            <div class="wizard-card" data-id="">
+                <div class="card-inner">
+                    <div class="avatar-box">
+                        <div class="avatar-emblem"></div> <!-- Placeholder for CSS avatar -->
+                        <div class="status-overlay"></div>
+                    </div>
+                    <div class="stats-box">
+                        <div class="name-tag">Name</div>
+                        <div class="bar-group">
+                            <div class="bar-container hp-bar-cont">
+                                <div class="bar fb-hp" style="width: 100%;"></div>
+                            </div>
+                            <div class="bar-container pos-bar-cont">
+                                <div class="bar fb-pos" style="width: 100%;"></div>
+                            </div>
+                            <div class="bar-container foc-bar-cont">
+                                <div class="bar fb-foc" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div class="status-icons"></div>
+                    </div>
+                </div>
+                <div class="target-overlay">Target</div>
+            </div>
+        </template>
+
+        <script src="app.js?v=6"></script>
+</body>
+
+</html>
