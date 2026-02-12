@@ -195,7 +195,7 @@ class GameSession:
                 brain = UnifiedBrainV2()
                 path = os.path.join(checkpoint_dir, variant_info.get("file_pattern", "unified_best_0.pth"))
                 if os.path.exists(path):
-                    brain.load_state_dict(torch.load(path, weights_only=True))
+                    brain.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
                     print(f"  ✓ Loaded shared model: {path}")
                 else:
                     print(f"  ✗ Not found: {path}")
@@ -207,7 +207,7 @@ class GameSession:
                     brain = UnifiedBrainV2()
                     path = os.path.join(checkpoint_dir, pattern.format(i=i % 5))
                     if os.path.exists(path):
-                        brain.load_state_dict(torch.load(path, weights_only=True))
+                        brain.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
                     brains.append(brain)
                 print(f"  ✓ Loaded {team_size} models from {checkpoint_dir}")
 
@@ -217,7 +217,7 @@ class GameSession:
                 brain = LegacyBrainV2()
                 path = os.path.join(checkpoint_dir, f"legacy_best_{i % 5}.pth")
                 if os.path.exists(path):
-                    brain.load_state_dict(torch.load(path, weights_only=True))
+                    brain.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
                 brains.append(brain)
 
         return brains
