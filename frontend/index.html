@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wizard Duel: One vs Many</title>
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=12">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
+<!-- ========== DYNAMIC BACKGROUND CANVAS (behind all screens) ========== -->
+<canvas id="bg-canvas"></canvas>
 
 <!-- ========== LOBBY SCREEN ========== -->
 <div id="lobby-screen" class="screen active">
@@ -15,6 +18,13 @@
     <div class="lobby-content">
         <h1 class="title">&#9889; Wizard Duel &#9889;</h1>
         <p class="subtitle">One vs Many &mdash; Team Battle Arena</p>
+
+        <!-- MODE SELECTOR TABS -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="classic">&#9876;&#65039; Classic Duel</button>
+            <button class="mode-tab" data-mode="grimoire">&#128214; The Grimoire</button>
+            <button class="mode-tab" data-mode="tutorial">&#128218; Spell Tutorial</button>
+        </div>
 
         <div class="setup-grid">
             <!-- ALLY TEAM -->
@@ -113,9 +123,141 @@
             </div>
         </div>
 
+        <!-- AUDIO CONTROLS (lobby) -->
+        <div class="audio-controls-lobby">
+            <button id="mute-btn" class="icon-btn" title="Toggle Audio">&#128266;</button>
+            <div class="vol-slider-group">
+                <label>Music</label>
+                <input type="range" id="bgm-vol" min="0" max="100" value="30" class="vol-slider">
+            </div>
+            <div class="vol-slider-group">
+                <label>SFX</label>
+                <input type="range" id="sfx-vol" min="0" max="100" value="60" class="vol-slider">
+            </div>
+        </div>
+
         <button id="start-btn" class="primary-btn">
             <span class="btn-icon">&#9876;&#65039;</span> Begin Duel
         </button>
+    </div>
+</div>
+
+<!-- ========== TUTORIAL SCREEN ========== -->
+<div id="tutorial-screen" class="screen">
+    <div class="lobby-bg"></div>
+    <div class="tutorial-content">
+        <button id="tutorial-back-btn" class="back-btn">&#8592; Back to Lobby</button>
+        <h1 class="title" style="font-size:1.8rem">&#128218; Spell Academy</h1>
+        <p class="subtitle">Master each spell in 1v1 practice duels</p>
+
+        <!-- Lesson List -->
+        <div id="tutorial-lesson-list" class="tutorial-lessons"></div>
+
+        <!-- Active Lesson Area (hidden by default) -->
+        <div id="tutorial-arena" class="hidden">
+            <div class="tutorial-header">
+                <div class="tutorial-lesson-info">
+                    <h2 id="tutorial-title"></h2>
+                    <p id="tutorial-desc"></p>
+                    <p class="tutorial-tip" id="tutorial-tip"></p>
+                    <p class="tutorial-objective" id="tutorial-objective"></p>
+                </div>
+            </div>
+
+            <div class="tutorial-battlefield">
+                <div class="tutorial-combatant tutorial-player">
+                    <div class="tutorial-label">YOU</div>
+                    <div class="tutorial-icon">&#129497;</div>
+                    <div class="tutorial-stats">
+                        <div class="tut-stat"><span class="tut-stat-label">HP</span>
+                            <div class="tut-bar"><div class="tut-bar-fill hp-fill" id="tut-player-hp-bar"></div></div>
+                            <span class="tut-stat-val" id="tut-player-hp">100</span>
+                        </div>
+                        <div class="tut-stat"><span class="tut-stat-label">POS</span>
+                            <div class="tut-bar"><div class="tut-bar-fill pos-fill" id="tut-player-pos-bar"></div></div>
+                            <span class="tut-stat-val" id="tut-player-pos">50</span>
+                        </div>
+                        <div class="tut-stat"><span class="tut-stat-label">FOC</span>
+                            <div class="tut-bar"><div class="tut-bar-fill foc-fill" id="tut-player-foc-bar"></div></div>
+                            <span class="tut-stat-val" id="tut-player-foc">100</span>
+                        </div>
+                    </div>
+                    <div id="tut-player-status" class="status-badges"></div>
+                </div>
+
+                <div class="tutorial-vs">VS</div>
+
+                <div class="tutorial-combatant tutorial-enemy">
+                    <div class="tutorial-label">TARGET DUMMY</div>
+                    <div class="tutorial-icon">&#129516;</div>
+                    <div class="tutorial-stats">
+                        <div class="tut-stat"><span class="tut-stat-label">HP</span>
+                            <div class="tut-bar"><div class="tut-bar-fill hp-fill" id="tut-enemy-hp-bar"></div></div>
+                            <span class="tut-stat-val" id="tut-enemy-hp">60</span>
+                        </div>
+                        <div class="tut-stat"><span class="tut-stat-label">POS</span>
+                            <div class="tut-bar"><div class="tut-bar-fill pos-fill" id="tut-enemy-pos-bar"></div></div>
+                            <span class="tut-stat-val" id="tut-enemy-pos">30</span>
+                        </div>
+                    </div>
+                    <div id="tut-enemy-status" class="status-badges"></div>
+                    <div id="tut-enemy-dist" class="dist-label dist-mid">MID</div>
+                </div>
+            </div>
+
+            <div id="tutorial-message" class="tutorial-message"></div>
+
+            <div id="tutorial-spell-bar" class="tutorial-spell-bar"></div>
+
+            <div class="tutorial-actions">
+                <button id="tut-reset-btn" class="secondary-btn">&#128260; Reset</button>
+                <button id="tut-next-btn" class="secondary-btn hidden">Next Lesson &#8594;</button>
+                <button id="tut-back-to-list-btn" class="secondary-btn">&#8592; Lesson List</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DRAFT (GRIMOIRE) SCREEN ========== -->
+<div id="draft-screen" class="screen">
+    <div class="lobby-bg"></div>
+    <div class="draft-content">
+        <button id="draft-back-btn" class="back-btn">&#8592; Back to Lobby</button>
+        <h1 class="title" style="font-size:1.8rem">&#128214; The Grimoire</h1>
+        <p class="subtitle">Draft your spell deck &mdash; 6 rounds, 3 choices each</p>
+
+        <div class="draft-area">
+            <!-- Current deck slots -->
+            <div class="draft-deck">
+                <h3>Your Deck <span class="draft-innate">(+ Basic Cast innate)</span></h3>
+                <div id="draft-deck-slots" class="draft-slots"></div>
+            </div>
+
+            <!-- Draft round info -->
+            <div class="draft-round-info">
+                <div id="draft-round-label" class="draft-round-label">Round 1 / 6</div>
+                <div id="draft-reroll-info" class="draft-reroll-info">
+                    <button id="draft-reroll-btn" class="secondary-btn">&#127922; Reroll (1)</button>
+                </div>
+            </div>
+
+            <!-- 3 Choice Cards -->
+            <div id="draft-choices" class="draft-choices"></div>
+
+            <!-- Synergies found -->
+            <div id="draft-synergies" class="draft-synergies hidden">
+                <h4>&#128279; Synergies Unlocked</h4>
+                <div id="draft-synergy-list"></div>
+            </div>
+        </div>
+
+        <!-- Draft complete area -->
+        <div id="draft-complete" class="draft-complete hidden">
+            <h2>&#9989; Deck Complete!</h2>
+            <div id="draft-final-deck" class="draft-final-deck"></div>
+            <div id="draft-final-synergies" class="draft-final-synergies"></div>
+            <button id="draft-fight-btn" class="primary-btn">&#9876;&#65039; Fight with this Deck!</button>
+        </div>
     </div>
 </div>
 
@@ -126,8 +268,12 @@
 
     <!-- Settings Gear -->
     <button id="settings-btn" title="Settings">&#9881;&#65039;</button>
+    <!-- Audio Toggle (battle) -->
+    <button id="battle-mute-btn" class="icon-btn battle-audio-btn" title="Toggle Audio">&#128266;</button>
     <!-- Replay Round Button -->
     <button id="replay-btn" title="Replay last round" class="hidden">&#9654;&#65039; Replay</button>
+    <!-- Weather indicator -->
+    <div id="weather-indicator" class="weather-indicator"></div>
 
     <div id="battlefield">
         <div id="team-a" class="team-zone ally-zone"></div>
@@ -188,6 +334,38 @@
             </label>
         </div>
 
+        <div class="setting-group">
+            <label class="setting-label">Arena Weather</label>
+            <select id="weather-select">
+                <option value="random">Random</option>
+                <option value="clear">Clear</option>
+                <option value="fog">Fog</option>
+                <option value="rain">Rain</option>
+                <option value="storm">Storm</option>
+                <option value="embers">Embers</option>
+                <option value="snow">Snow</option>
+                <option value="dark_mist">Dark Mist</option>
+            </select>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">Music Volume</label>
+            <div class="slider-row">
+                <span class="slider-label">0%</span>
+                <input type="range" id="settings-bgm-vol" min="0" max="100" step="1" value="30">
+                <span class="slider-label">100%</span>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">SFX Volume</label>
+            <div class="slider-row">
+                <span class="slider-label">0%</span>
+                <input type="range" id="settings-sfx-vol" min="0" max="100" step="1" value="60">
+                <span class="slider-label">100%</span>
+            </div>
+        </div>
+
         <button id="settings-close-btn" class="primary-btn">Done</button>
     </div>
 </div>
@@ -241,6 +419,10 @@
     </div>
 </template>
 
-<script src="app.js?v=11"></script>
+<script src="audio.js?v=12"></script>
+<script src="backgrounds.js?v=12"></script>
+<script src="tutorial.js?v=12"></script>
+<script src="draft.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

@@ -1,10 +1,15 @@
 /* ======================================================
-   WIZARD DUEL FRONTEND — app.js v10
+   WIZARD DUEL FRONTEND — app.js v12
    Full rewrite: particles, all 16 spells, floating dmg,
-   figures, fog-of-war, win screen, model selection
+   figures, fog-of-war, win screen, model selection,
+   audio, tutorial, draft, dynamic backgrounds
    ====================================================== */
 
 const API = '/api';
+
+// ─── GAME MODES ───
+let currentMode = 'classic'; // 'classic', 'tutorial', 'grimoire'
+let draftedDeck = null; // If playing with a drafted deck
 
 // ─── ALL 16 SPELLS (matching duel_engine SPELL_BOOK) ───
 const SPELLS = [
@@ -506,6 +511,16 @@ async function playAnimationSequence(events, visualOnly = false) {
         playSpellParticles(ev.caster_id, ev.target_id, ev.spell || '');
         showDamageNumbers(ev);
 
+        // ── AUDIO: spell cast SFX ──
+        if (typeof audioManager !== 'undefined') {
+            audioManager.playSpellSFX(ev.spell);
+            // Hit SFX for damage events
+            const hpDmg = ev.hp_dmg || 0;
+            if (hpDmg > 0) {
+                setTimeout(() => audioManager.playHitSFX(), 200);
+            }
+        }
+
         // Add log entry for this event (skip during replay to avoid duplicates)
         if (!visualOnly) {
             addLogEntry(ev);
@@ -587,10 +602,16 @@ function renderSpellBar() {
     if (!bar) return;
     bar.innerHTML = '';
 
-    SPELLS.forEach((spell, idx) => {
+    // If drafted deck exists, only show those spells
+    const spellsToShow = draftedDeck && draftedDeck.length > 0
+        ? draftedDeck
+        : SPELLS;
+
+    spellsToShow.forEach((spell, idx) => {
+        const spellIdx = draftedDeck ? SPELLS.findIndex(s => s.name === spell.name) : idx;
         const btn = document.createElement('div');
         btn.className = 'spell-btn';
-        btn.dataset.idx = idx;
+        btn.dataset.idx = spellIdx;
         btn.style.borderColor = spell.color;
 
         // Type indicator dot
@@ -605,7 +626,7 @@ function renderSpellBar() {
             <div class="spell-cost">${spell.cost > 0 ? spell.cost + ' FOC' : 'FREE'}</div>
         `;
 
-        btn.addEventListener('click', () => onSpellClick(idx, btn));
+        btn.addEventListener('click', () => onSpellClick(spellIdx, btn));
         btn.addEventListener('mouseenter', (e) => showTooltip(spell, e));
         btn.addEventListener('mouseleave', hideTooltip);
         bar.appendChild(btn);
@@ -764,10 +785,19 @@ async function createGame() {
     };
 
     try {
-        const res = await fetch(`${API}/create`, {
+        // Determine endpoint based on mode
+        let endpoint = `${API}/create`;
+        const body = { ...payload };
+
+        if (draftedDeck && draftedDeck.length > 0) {
+            endpoint = `${API}/create_draft`;
+            body.drafted_deck = draftedDeck.map(s => s.name);
+        }
+
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error(`Server ${res.status}: ${await res.text()}`);
         const data = await res.json();
@@ -776,6 +806,25 @@ async function createGame() {
 
         switchScreen('battle');
         initCanvas();
+        renderSpellBar(); // Re-render to reflect drafted deck
+
+        // ── AUDIO: start battle BGM ──
+        if (typeof audioManager !== 'undefined') {
+            audioManager.playBGM(Math.random() > 0.5 ? 'bgm_battle' : 'bgm_battle_alt');
+        }
+
+        // ── DYNAMIC BACKGROUND: set weather ──
+        if (typeof dynamicBG !== 'undefined' && dynamicBG.isActive) {
+            const weatherSel = document.getElementById('weather-select');
+            const weatherChoice = weatherSel ? weatherSel.value : 'random';
+            const weatherName = weatherChoice === 'random' ? dynamicBG.randomizeWeather() : (dynamicBG.setWeather(weatherChoice), weatherChoice);
+            const weatherIndicator = document.getElementById('weather-indicator');
+            if (weatherIndicator) {
+                const weatherIcons = { clear: '☀️', fog: '🌫️', rain: '🌧️', storm: '⛈️', embers: '🔥', snow: '❄️', dark_mist: '🌑' };
+                weatherIndicator.textContent = `${weatherIcons[weatherName] || '🌤️'} ${weatherName.charAt(0).toUpperCase() + weatherName.slice(1).replace('_', ' ')}`;
+            }
+        }
+
         await pollState();
     } catch (e) {
         console.error('Failed to create game:', e);
@@ -1073,12 +1122,14 @@ function showWinScreen(state) {
     const stats = document.getElementById('win-stats');
 
     const winner = state.winner || 'Draw';
+    let isVictory = false;
 
     if (winner.includes('A') || winner.includes('ally') || winner.toLowerCase().includes('ally')) {
         icon.textContent = '🏆';
         title.textContent = 'VICTORY!';
         title.className = 'victory';
         subtitle.textContent = 'Your team has won the duel!';
+        isVictory = true;
     } else if (winner.includes('Draw') || winner.includes('Max')) {
         icon.textContent = '⚖️';
         title.textContent = 'DRAW';
@@ -1089,6 +1140,11 @@ function showWinScreen(state) {
         title.textContent = 'DEFEAT';
         title.className = 'defeat';
         subtitle.textContent = 'The enemy team has won...';
+    }
+
+    // ── AUDIO: victory/defeat sting ──
+    if (typeof audioManager !== 'undefined') {
+        audioManager.playResultSFX(isVictory);
     }
 
     // Stats summary
@@ -1137,6 +1193,7 @@ function resetToLobby() {
     playerWizardId = null;
     particles = [];
     lastRoundEvents = [];
+    draftedDeck = null;
 
     // Hide replay button
     const replayBtn = document.getElementById('replay-btn');
@@ -1154,6 +1211,16 @@ function resetToLobby() {
     if (particleAnimFrame) {
         cancelAnimationFrame(particleAnimFrame);
         particleAnimFrame = null;
+    }
+
+    // ── AUDIO: lobby BGM ──
+    if (typeof audioManager !== 'undefined') {
+        audioManager.playBGM('bgm_lobby');
+    }
+
+    // ── DYNAMIC BG: calm weather ──
+    if (typeof dynamicBG !== 'undefined' && dynamicBG.isActive) {
+        dynamicBG.setWeather('clear');
     }
 
     hideWinScreen();
@@ -1236,9 +1303,445 @@ function init() {
     renderSpellBar();
     initAvatarPickers();
     initSettings();
+    initModeTabs();
+    initAudioControls();
+    initTutorialUI();
+    initDraftUI();
 
-    document.getElementById('start-btn')?.addEventListener('click', createGame);
+    // ── DYNAMIC BACKGROUND ──
+    if (typeof dynamicBG !== 'undefined') {
+        const bgCanvas = document.getElementById('bg-canvas');
+        if (bgCanvas) {
+            dynamicBG.init(bgCanvas);
+            dynamicBG.setWeather('clear');
+            dynamicBG.start();
+        }
+    }
+
+    // ── AUDIO: lobby music ──
+    if (typeof audioManager !== 'undefined') {
+        // Start lobby music on first user interaction (browser autoplay policy)
+        document.addEventListener('click', function startLobbyMusic() {
+            audioManager.playBGM('bgm_lobby');
+            document.removeEventListener('click', startLobbyMusic);
+        }, { once: true });
+    }
+
+    document.getElementById('start-btn')?.addEventListener('click', () => {
+        if (currentMode === 'grimoire') {
+            // Start draft first
+            switchScreen('draft');
+            startDraftUI();
+        } else {
+            createGame();
+        }
+    });
     document.getElementById('back-to-lobby-btn')?.addEventListener('click', resetToLobby);
+}
+
+// ─── MODE TABS ───
+
+function initModeTabs() {
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentMode = tab.dataset.mode;
+
+            const startBtn = document.getElementById('start-btn');
+            const setupGrid = document.querySelector('.setup-grid');
+
+            if (currentMode === 'tutorial') {
+                switchScreen('tutorial');
+                renderTutorialLessons();
+            } else if (currentMode === 'grimoire') {
+                // Show setup grid but change button text
+                if (startBtn) {
+                    startBtn.innerHTML = '<span class="btn-icon">📖</span> Draft & Fight';
+                }
+                if (setupGrid) setupGrid.style.display = '';
+            } else {
+                // Classic mode
+                if (startBtn) {
+                    startBtn.innerHTML = '<span class="btn-icon">⚔️</span> Begin Duel';
+                }
+                if (setupGrid) setupGrid.style.display = '';
+            }
+        });
+    });
+}
+
+// ─── AUDIO CONTROLS ───
+
+function initAudioControls() {
+    if (typeof audioManager === 'undefined') return;
+
+    // Mute buttons
+    const muteBtn = document.getElementById('mute-btn');
+    const battleMuteBtn = document.getElementById('battle-mute-btn');
+
+    function toggleMute(btn) {
+        const muted = audioManager.toggleMute();
+        if (btn) {
+            btn.textContent = muted ? '🔇' : '🔊';
+            btn.classList.toggle('muted', muted);
+        }
+        // Sync the other button
+        [muteBtn, battleMuteBtn].forEach(b => {
+            if (b) {
+                b.textContent = muted ? '🔇' : '🔊';
+                b.classList.toggle('muted', muted);
+            }
+        });
+        if (!muted) audioManager.playBGM('bgm_lobby');
+    }
+
+    if (muteBtn) muteBtn.addEventListener('click', () => toggleMute(muteBtn));
+    if (battleMuteBtn) battleMuteBtn.addEventListener('click', () => toggleMute(battleMuteBtn));
+
+    // Volume sliders (lobby)
+    const bgmSlider = document.getElementById('bgm-vol');
+    const sfxSlider = document.getElementById('sfx-vol');
+    if (bgmSlider) bgmSlider.addEventListener('input', () => audioManager.setBGMVolume(bgmSlider.value / 100));
+    if (sfxSlider) sfxSlider.addEventListener('input', () => audioManager.setSFXVolume(sfxSlider.value / 100));
+
+    // Volume sliders (settings)
+    const sBgm = document.getElementById('settings-bgm-vol');
+    const sSfx = document.getElementById('settings-sfx-vol');
+    if (sBgm) sBgm.addEventListener('input', () => {
+        audioManager.setBGMVolume(sBgm.value / 100);
+        if (bgmSlider) bgmSlider.value = sBgm.value;
+    });
+    if (sSfx) sSfx.addEventListener('input', () => {
+        audioManager.setSFXVolume(sSfx.value / 100);
+        if (sfxSlider) sfxSlider.value = sSfx.value;
+    });
+}
+
+// ─── TUTORIAL UI ───
+
+function initTutorialUI() {
+    document.getElementById('tutorial-back-btn')?.addEventListener('click', () => {
+        switchScreen('lobby');
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('.mode-tab[data-mode="classic"]')?.classList.add('active');
+        currentMode = 'classic';
+    });
+    document.getElementById('tut-reset-btn')?.addEventListener('click', () => {
+        if (tutorialManager.lessonIndex >= 0) {
+            tutorialManager.resetLesson();
+            renderTutorialArena();
+        }
+    });
+    document.getElementById('tut-back-to-list-btn')?.addEventListener('click', () => {
+        document.getElementById('tutorial-arena').classList.add('hidden');
+        document.getElementById('tutorial-lesson-list').style.display = '';
+        renderTutorialLessons();
+    });
+    document.getElementById('tut-next-btn')?.addEventListener('click', () => {
+        const next = tutorialManager.lessonIndex + 1;
+        if (next < TUTORIAL_LESSONS.length) {
+            startTutorialLesson(next);
+        }
+    });
+}
+
+function renderTutorialLessons() {
+    const list = document.getElementById('tutorial-lesson-list');
+    if (!list) return;
+    list.style.display = '';
+    document.getElementById('tutorial-arena')?.classList.add('hidden');
+
+    const progress = tutorialManager.getProgress();
+    list.innerHTML = '';
+
+    progress.lessons.forEach((lesson, idx) => {
+        const card = document.createElement('div');
+        card.className = `tutorial-lesson-card${lesson.completed ? ' completed' : ''}`;
+        card.innerHTML = `
+            <div class="lesson-card-icon">${lesson.icon}</div>
+            <div class="lesson-card-title">${lesson.title}</div>
+            <div class="lesson-card-desc">${lesson.description.slice(0, 80)}...</div>
+        `;
+        card.addEventListener('click', () => startTutorialLesson(idx));
+        list.appendChild(card);
+    });
+}
+
+function startTutorialLesson(index) {
+    const lesson = tutorialManager.startLesson(index);
+    if (!lesson) return;
+
+    document.getElementById('tutorial-lesson-list').style.display = 'none';
+    document.getElementById('tutorial-arena').classList.remove('hidden');
+    document.getElementById('tut-next-btn')?.classList.add('hidden');
+
+    renderTutorialArena();
+}
+
+function renderTutorialArena() {
+    const lesson = tutorialManager.currentLesson;
+    if (!lesson) return;
+
+    document.getElementById('tutorial-title').textContent = `${lesson.icon} ${lesson.title}`;
+    document.getElementById('tutorial-desc').textContent = lesson.description;
+    document.getElementById('tutorial-tip').textContent = `💡 Tip: ${lesson.tip}`;
+    document.getElementById('tutorial-objective').textContent = `🎯 Objective: ${lesson.objective}`;
+    document.getElementById('tutorial-message').textContent = '';
+    document.getElementById('tutorial-message').className = 'tutorial-message';
+
+    updateTutorialStats();
+    renderTutorialSpells();
+}
+
+function updateTutorialStats() {
+    const state = tutorialManager.getState();
+
+    // Player stats
+    const pHP = Math.max(0, state.player.hp);
+    document.getElementById('tut-player-hp').textContent = Math.round(pHP);
+    document.getElementById('tut-player-hp-bar').style.width = (pHP / state.player.maxHP * 100) + '%';
+    document.getElementById('tut-player-pos').textContent = Math.round(state.player.posture);
+    document.getElementById('tut-player-pos-bar').style.width = Math.max(0, state.player.posture / state.player.maxPosture * 100) + '%';
+    document.getElementById('tut-player-foc').textContent = Math.round(state.player.focus);
+    document.getElementById('tut-player-foc-bar').style.width = (state.player.focus / state.player.maxFocus * 100) + '%';
+
+    // Enemy stats
+    const eHP = Math.max(0, state.enemy.hp);
+    document.getElementById('tut-enemy-hp').textContent = Math.round(eHP);
+    document.getElementById('tut-enemy-hp-bar').style.width = (eHP / state.enemy.maxHP * 100) + '%';
+    document.getElementById('tut-enemy-pos').textContent = Math.round(state.enemy.posture);
+    document.getElementById('tut-enemy-pos-bar').style.width = Math.max(0, state.enemy.posture / state.enemy.maxPosture * 100) + '%';
+
+    // Distance
+    const distNames = ['CLOSE', 'MID', 'FAR'];
+    const distEl = document.getElementById('tut-enemy-dist');
+    if (distEl) {
+        distEl.textContent = distNames[state.enemy.dist] || 'MID';
+        distEl.className = 'dist-label ' + ['dist-close', 'dist-mid', 'dist-far'][state.enemy.dist];
+    }
+
+    // Status badges
+    renderStatusBadges('tut-player-status', state.player.status);
+    renderStatusBadges('tut-enemy-status', state.enemy.status);
+}
+
+function renderStatusBadges(elementId, status) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.innerHTML = '';
+    const classes = {
+        Airborne: 'badge-airborne', Frozen: 'badge-frozen', Slowed: 'badge-slowed',
+        Brittle: 'badge-brittle', Stunned: 'badge-stunned', CursedPain: 'badge-cursedpain',
+        Shield: 'badge-shield', MaxShield: 'badge-maxshield',
+    };
+    for (const [key, val] of Object.entries(status)) {
+        if (val > 0) {
+            const badge = document.createElement('span');
+            badge.className = `status-badge ${classes[key] || ''}`;
+            badge.textContent = key === 'CursedPain' ? `DoT${val}` : key;
+            el.appendChild(badge);
+        }
+    }
+}
+
+function renderTutorialSpells() {
+    const bar = document.getElementById('tutorial-spell-bar');
+    if (!bar) return;
+    bar.innerHTML = '';
+
+    const lesson = tutorialManager.currentLesson;
+    if (!lesson) return;
+
+    const state = tutorialManager.getState();
+
+    lesson.allowedSpells.forEach(idx => {
+        const spell = SPELLS[idx];
+        if (!spell) return;
+
+        const btn = document.createElement('div');
+        btn.className = 'tut-spell-btn';
+        if (state.player.focus < spell.cost) btn.classList.add('disabled');
+        btn.style.borderColor = spell.color;
+        btn.innerHTML = `
+            <div class="tut-spell-icon">${spell.icon}</div>
+            <div class="tut-spell-name">${spell.name}</div>
+            <div class="tut-spell-cost">${spell.cost > 0 ? spell.cost + ' FOC' : 'FREE'}</div>
+        `;
+        btn.addEventListener('click', () => {
+            if (btn.classList.contains('disabled')) return;
+            const result = tutorialManager.castSpell(idx);
+            if (!result) return;
+
+            // Play SFX
+            if (typeof audioManager !== 'undefined') {
+                audioManager.playSpellSFX(spell.name);
+                if (result.events.some(e => (e.hp_dmg || 0) > 0)) {
+                    setTimeout(() => audioManager.playHitSFX(), 200);
+                }
+            }
+
+            updateTutorialStats();
+            renderTutorialSpells();
+
+            const msg = document.getElementById('tutorial-message');
+            if (msg && result.message) {
+                msg.textContent = result.message;
+                if (result.victory) msg.className = 'tutorial-message victory';
+                else if (result.done && !result.victory) msg.className = 'tutorial-message defeat';
+            }
+
+            if (result.done) {
+                // Disable spells
+                bar.querySelectorAll('.tut-spell-btn').forEach(b => b.classList.add('disabled'));
+                if (result.victory && tutorialManager.lessonIndex < TUTORIAL_LESSONS.length - 1) {
+                    document.getElementById('tut-next-btn')?.classList.remove('hidden');
+                }
+            }
+        });
+        bar.appendChild(btn);
+    });
+}
+
+// ─── DRAFT UI ───
+
+function initDraftUI() {
+    document.getElementById('draft-back-btn')?.addEventListener('click', () => {
+        switchScreen('lobby');
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('.mode-tab[data-mode="classic"]')?.classList.add('active');
+        currentMode = 'classic';
+    });
+    document.getElementById('draft-reroll-btn')?.addEventListener('click', () => {
+        const result = draftManager.reroll();
+        if (result) renderDraftState(result);
+    });
+    document.getElementById('draft-fight-btn')?.addEventListener('click', () => {
+        draftedDeck = draftManager.getFinalDeck();
+        switchScreen('lobby');
+        createGame(); // Start battle with drafted deck
+    });
+}
+
+function startDraftUI() {
+    const result = draftManager.startDraft();
+    document.getElementById('draft-complete')?.classList.add('hidden');
+    document.querySelector('.draft-area')?.style.setProperty('display', '');
+    renderDraftState(result);
+}
+
+function renderDraftState(state) {
+    if (state.done) {
+        // Draft complete
+        document.querySelector('.draft-area')?.style.setProperty('display', 'none');
+        document.getElementById('draft-complete')?.classList.remove('hidden');
+
+        const finalDeck = document.getElementById('draft-final-deck');
+        if (finalDeck) {
+            finalDeck.innerHTML = '';
+            const allSpells = draftManager.getFinalDeck();
+            allSpells.forEach(spell => {
+                const slot = document.createElement('div');
+                slot.className = 'draft-slot filled';
+                slot.innerHTML = `<div class="slot-icon">${spell.icon}</div><div class="slot-name">${spell.name}</div>`;
+                finalDeck.appendChild(slot);
+            });
+        }
+
+        const synList = document.getElementById('draft-final-synergies');
+        if (synList && state.synergies.length > 0) {
+            synList.innerHTML = '<strong>Synergies:</strong> ' + state.synergies.map(s => s.label).join(', ');
+        }
+        return;
+    }
+
+    // Update round label
+    const roundLabel = document.getElementById('draft-round-label');
+    if (roundLabel) roundLabel.textContent = `Round ${state.round} / ${state.maxRounds}`;
+
+    // Update reroll button
+    const rerollBtn = document.getElementById('draft-reroll-btn');
+    if (rerollBtn) {
+        rerollBtn.textContent = `🎲 Reroll (${state.rerollsLeft})`;
+        if (state.rerollsLeft <= 0) rerollBtn.classList.add('disabled');
+        else rerollBtn.classList.remove('disabled');
+    }
+
+    // Render deck slots
+    const slots = document.getElementById('draft-deck-slots');
+    if (slots) {
+        slots.innerHTML = '';
+        for (let i = 0; i < draftManager.maxRounds; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'draft-slot';
+            if (i < state.deck.length) {
+                slot.classList.add('filled');
+                slot.innerHTML = `<div class="slot-icon">${state.deck[i].icon}</div><div class="slot-name">${state.deck[i].name}</div>`;
+            } else {
+                slot.innerHTML = `<div class="slot-empty">Slot ${i + 1}</div>`;
+            }
+            slots.appendChild(slot);
+        }
+    }
+
+    // Render choices
+    const choices = document.getElementById('draft-choices');
+    if (choices) {
+        choices.innerHTML = '';
+        state.choices.forEach(spell => {
+            const card = document.createElement('div');
+            card.className = 'draft-choice-card';
+            card.dataset.type = spell.type;
+
+            // Check for potential synergies with current deck
+            let synergyHint = '';
+            for (const deckSpell of state.deck) {
+                const syn = SYNERGIES[deckSpell.name];
+                if (syn && syn[spell.name]) {
+                    synergyHint = `Synergy with ${deckSpell.name}!`;
+                    break;
+                }
+                const synRev = SYNERGIES[spell.name];
+                if (synRev && synRev[deckSpell.name]) {
+                    synergyHint = `Synergy with ${deckSpell.name}!`;
+                    break;
+                }
+            }
+
+            card.innerHTML = `
+                <div class="choice-icon">${spell.icon}</div>
+                <div class="choice-name">${spell.name}</div>
+                <div class="choice-type" style="color:${spell.color}; background:${spell.color}22">${spell.type}</div>
+                <div class="choice-desc">${spell.desc}</div>
+                <div class="choice-cost">${spell.cost > 0 ? spell.cost + ' Focus' : 'FREE'}</div>
+                ${synergyHint ? `<div class="choice-synergy">🔗 ${synergyHint}</div>` : ''}
+            `;
+            card.addEventListener('click', () => {
+                if (typeof audioManager !== 'undefined') audioManager.playSFX('sfx_cast_attack');
+                const result = draftManager.pickSpell(spell.name);
+                if (result) renderDraftState(result);
+            });
+            choices.appendChild(card);
+        });
+    }
+
+    // Synergies display
+    const synContainer = document.getElementById('draft-synergies');
+    const synListEl = document.getElementById('draft-synergy-list');
+    if (synContainer && synListEl) {
+        if (state.synergies.length > 0) {
+            synContainer.classList.remove('hidden');
+            synListEl.innerHTML = '';
+            state.synergies.forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'synergy-item';
+                item.innerHTML = `<span class="synergy-label">${s.label}</span>`;
+                synListEl.appendChild(item);
+            });
+        } else {
+            synContainer.classList.add('hidden');
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', init);
