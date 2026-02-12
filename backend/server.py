@@ -5,6 +5,10 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uuid
 import os
+import sys
+
+# Add the current directory (backend) to sys.path to allow imports when running from root
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from game_session import GameSession
 
